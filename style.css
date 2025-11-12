@@ -590,8 +590,7 @@ body, html {
     width: 10px;
     height: 10px;
     background-color: #ff4b4b;
-    border-radius: 50%;
-    animation: pulse-live 1.5s infinite;
+    border-radius: 50%; /* (수정) 애니메이션 제거 */
 }
 
 /* (추가) LIVE 표시등 애니메이션 */
@@ -608,31 +607,46 @@ body, html {
     overflow: hidden;
     grid-row: 2;
     grid-column: 1; /* (수정) 1열이므로 1로 변경 */
-    position: relative;
+    position: relative; /* (수정) 컨트롤러 위치 기준점 */
     /* (수정) 작전판 배경 추가 */
     background: #000 url('playbook-bg.svg') center/cover;
-    padding: 1rem; /* (추가) 슬라이드가 가장자리에 붙지 않도록 패딩 추가 */
+    padding: 0; /* (수정) 슬라이더 구현을 위해 패딩 제거 */
     box-sizing: border-box;
+    display: flex; /* (추가) 컨트롤러와 슬라이더 정렬 */
+    align-items: center;
+}
+/* (추가) 슬라이드 컨트롤러 스타일 */
+.jumbotron-controller {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    border: 1px solid #444;
+    font-size: 2rem;
+    width: 50px;
+    height: 80px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.jumbotron-controller:hover { background: rgba(0,0,0,0.8); }
+.jumbotron-controller.prev { left: 10px; border-radius: 0 10px 10px 0; }
+.jumbotron-controller.next { right: 10px; border-radius: 10px 0 0 10px; }
+
+/* (추가) 실제 슬라이드가 보이는 영역 */
+.film-strip-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 /* (추가) 필름 스트립 컨테이너 */
 .film-strip {
-    display: flex;
+    display: flex; /* (수정) 가로 정렬을 위해 flex로 변경 */
     height: 100%;
-    /* (수정) 자동 스크롤 애니메이션 제거, 그리드 레이아웃으로 변경 */
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    width: 100%;
-    height: 100%;
-    overflow-y: auto; /* 콘텐츠가 많아지면 스크롤 */
-}
-/* (수정) 그리드 스크롤바 스타일 */
-.film-strip::-webkit-scrollbar {
-    width: 6px;
-}
-.film-strip::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 3px;
+    /* (수정) 클릭 기반 transition 대신, 연속적인 animation으로 변경 */
+    /* 애니메이션 속성은 JS에서 동적으로 설정됩니다. */
+    animation: auto-scroll linear infinite;
 }
 /* (추가) 스캔라인 효과 */
 .jumbotron-screen::after {
@@ -642,23 +656,45 @@ body, html {
     justify-content: center;
     align-items: center;
 }
+/* (추가) 자동 스크롤 애니메이션 */
+@keyframes auto-scroll {
+    from {
+        transform: translateX(var(--scroll-start));
+    }
+    to {
+        transform: translateX(var(--scroll-end));
+    }
+}
+
+
 
 /* (추가) 각 프로젝트 슬라이드 */
 /* (수정) 필름 스트립에 맞게 스타일 변경 */
 .project-slide {
-    /* (수정) 그리드 아이템으로 작동하도록 스타일 변경 */
-    width: 100%;
-    height: 100%;
-    min-height: 250px; /* (추가) 최소 높이 설정 */
+    width: 320px; /* (수정) 슬라이드 너비 고정 */
+    height: 90%; /* (수정) 슬라이드 높이 조정 */
+    margin: auto 1rem; /* (수정) 슬라이드 간 간격 */
     position: relative;
-    background-size: cover;
-    background-position: center;
+    flex-shrink: 0; /* (추가) 슬라이더 아이템이 줄어들지 않도록 설정 */
+    /* (수정) 배경 이미지 대신 flex 레이아웃으로 변경 */
+    display: flex;
+    flex-direction: column;
+    background-color: #1a1a1a;
     /* (수정) 호버 효과와 재정렬 애니메이션을 위한 transition 설정 */
-    transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                opacity 0.4s ease, 
+    transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1),
+                opacity 0.4s ease,
                 box-shadow 0.4s ease;
     border-radius: 4px; /* (추가) 모서리 살짝 둥글게 */
     overflow: hidden; /* (추가) 내부 요소가 삐져나오지 않도록 */
+    border: 1px solid #282828; /* (추가) 카드 테두리 */
+}
+/* (추가) 넓은 카드 스타일 */
+.project-slide.wide {
+    width: 500px;
+}
+/* (추가) 더 넓은 카드 스타일 */
+.project-slide.extra-wide {
+    width: 800px;
 }
 
 /* (추가) 필터링될 때 숨겨지는 효과 */
@@ -666,7 +702,7 @@ body, html {
     transform: scale(0.5);
     opacity: 0;
     /* (수정) 레이아웃에 영향을 주지 않도록 width, height 등을 0으로 만듭니다. */
-    width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important;
+    width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important;
     pointer-events: none; /* (추가) 사라진 요소에 이벤트가 발생하지 않도록 */
     overflow: hidden;
 }
@@ -687,26 +723,27 @@ body, html {
     transition-delay: calc(0.4s + var(--stagger, 0) * 0.1s);
 }
 
-/* (추가) 슬라이드 전환 시 글리치 효과 */
-/* (삭제) 글리치 효과는 더 이상 사용하지 않음 */
-.project-slide::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 70%);
-}
-
 /* (추가) 슬라이드 내부 콘텐츠 */
 /* (수정) 필름 스트립에 맞게 애니메이션 로직 제거 */
 .slide-content {
     position: absolute;
     bottom: 0;
-    left: 0;
     width: 100%;
-    padding: 2rem;
+    padding: 1rem; /* (수정) 패딩 조정 */
     box-sizing: border-box;
     text-align: left;
     color: #fff;
+    /* (추가) 썸네일 위에 오버레이되도록 배경 추가 */
+    background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
+}
+/* (추가) 썸네일 이미지 영역 */
+.slide-thumbnail {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.slide-thumbnail img {
+    width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;
 }
 .slide-content .project-category {
     font-size: 1rem;
@@ -715,7 +752,7 @@ body, html {
     --stagger: 1; /* (추가) 애니메이션 순서 */
 }
 .slide-content h3 {
-    font-size: 2.5rem;
+    font-size: 1.8rem; /* (수정) 폰트 크기 조정 */
     margin: 0 0 1rem 0;
     letter-spacing: 1px;
     --stagger: 2; /* (추가) 애니메이션 순서 */
@@ -723,9 +760,16 @@ body, html {
     overflow: hidden; /* (추가) 넘치는 텍스트 숨김 */
     text-overflow: ellipsis; /* (추가) 넘치는 텍스트 ... 처리 */
 }
+/* (추가) 이미지 제목 스타일 */
+.slide-content .slide-title-img {
+    width: 80%; /* 카드 너비의 80% 차지 */
+    height: auto;
+    margin-bottom: 1rem; /* 아래 버튼과의 간격 */
+    --stagger: 2; /* 애니메이션 순서 */
+}
 .slide-content .view-button {
     display: inline-block;
-    padding: 0.8rem 2rem;
+    padding: 0.6rem 1.5rem; /* (수정) 버튼 크기 조정 */
     background-color: var(--visual-color);
     color: #fff;
     text-decoration: none;
@@ -789,12 +833,33 @@ body, html {
 .modal-close:hover{color:#fff}
 .modal-grid{display:grid;grid-template-columns:2fr 1fr;gap:2.5rem}
 .modal-image-wrapper img{width:100%;height:auto;max-height:75vh;object-fit:contain}
+.modal-image-wrapper img:not(:last-child) {
+    margin-bottom: 1rem; /* 이미지 사이에 간격 추가 */
+}
+/* (추가) 피그마 프로토타입용 휴대폰 프레임 스타일 */
+.phone-frame {
+    /* (수정) 프레임 모양을 제거하고, iframe을 담는 컨테이너 역할만 하도록 변경 */
+    width: 100%;
+    height: 75vh;
+    box-sizing: border-box;
+    margin: 0 auto; /* 가운데 정렬 */
+}
+.phone-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #444; /* (수정) 깔끔한 테두리 추가 */
+    border-radius: 8px; /* (수정) 모서리를 살짝 둥글게 */
+}
+.modal-image-wrapper img:not(:last-child) {
+    margin-bottom: 1rem; /* 이미지 사이에 간격 추가 */
+}
 .modal-info-wrapper h2{font-size:4rem;margin:0 0 .5rem;letter-spacing:2px;color:#fff} /* (수정) 제목 폰트 크기 증가 */
 .modal-info-wrapper #modal-category{font-size:1.1rem;color:#aaa;margin:0 0 2.5rem;letter-spacing:1px}
 .info-group{margin-bottom:2rem}
 .info-group h3{font-size:1.2rem;letter-spacing:2px;color:#888;margin:0 0 .5rem;border-bottom:1px solid #444;padding-bottom:.5rem}
 /* (수정) 일관성을 위해 폰트 재지정 (기존과 동일하지만 확인차) */
 .info-group p,.info-group div{font-size:1.15rem;line-height:1.8;color:#ddd;font-family:'Inter', sans-serif} /* (수정) 본문 폰트 크기 및 줄 간격 증가 */
+.info-group div p { margin: 0 0 1rem 0; } /* (추가) 모달 설명 문단 간격 조정 */
 .modal-content::-webkit-scrollbar{width:8px}
 .modal-content::-webkit-scrollbar-track{background:#1a1a1a}
 .modal-content::-webkit-scrollbar-thumb{background:#555}
@@ -867,12 +932,12 @@ body, html {
     overflow: hidden;
 }
 .team-logo {
-    width: 50px;
-    height: 50px;
+    width: 60px; /* (수정) 로고 크기 살짝 키움 */
+    height: 60px;
     background: #222;
     color: #fff;
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 2rem;
+    font-size: 2.5rem; /* (수정) 로고 폰트 크기 키움 */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -921,33 +986,41 @@ body, html {
 /* (추가) 서명 애니메이션 스타일 */
 .signature-svg {
     position: absolute;
-    bottom: 85px; /* (수정) 아이콘 바로 위에 위치하도록 조정 */
-    left: 0;
-    width: 100%;
-    height: 100px;
+    bottom: 75px; /* (수정) 아이콘 바로 위에 위치하도록 조정 */
+    left: 50%; /* (수정) 가운데 정렬 */
+    transform: translateX(-50%); /* (수정) 가운데 정렬 */
+    width: 500px; /* (수정) 서명 너비 증가 */
+    height: 188px; /* (수정) 비율에 맞게 높이 증가 */
     pointer-events: none;
     opacity: 0; /* (추가) 기본적으로 숨김 */
     transition: opacity 0.3s ease; /* (추가) 부드러운 전환 */
+    z-index: 10; /* (추가) 다른 요소들보다 앞에 보이도록 z-index 설정 */
 }
 .signature-area.is-signed .signature-svg {
     opacity: 1; /* (추가) 서명 애니메이션 시 보이도록 */
 }
-.signature-path {
-    stroke: var(--frontend-color); /* (수정) 서명 색상을 테마 컬러로 변경 */
-    stroke-width: 5; /* (수정) 획을 더 굵게 */
+/* (수정) SVG 텍스트 애니메이션을 위한 스타일 */
+.signature-text {
+    font-family: 'Dancing Script', cursive;
+    font-size: 100px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    stroke: #FFD700;
+    stroke-width: 2;
     fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-dasharray: 2000; /* (수정) 경로 길이에 맞춰 더 큰 값으로 설정 */
-    stroke-dashoffset: 2000; /* (수정) 경로 길이에 맞춰 더 큰 값으로 설정 */
-    /* (추가) 네온 글로우 효과 */
-    filter: drop-shadow(0 0 4px var(--frontend-color)) drop-shadow(0 0 10px rgba(var(--frontend-color-rgb), 0.5));
+    filter: drop-shadow(0 0 5px #FFD700) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+
+    /* (수정) JS에서 제어하므로 기본 dasharray/offset은 0으로 설정 */
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
 }
-.signature-area.is-signed .signature-path {
-    animation: draw-signature 1.5s cubic-bezier(0.65, 0, 0.35, 1) forwards; /* (수정) 애니메이션 타이밍을 더 역동적으로 변경 */
+.signature-area.is-signed .signature-text {
+    animation: draw-signature 2.5s ease-in-out forwards; /* (수정) 단일 애니메이션으로 변경 */
 }
 @keyframes draw-signature {
-    to { stroke-dashoffset: 0; }
+    to {
+        stroke-dashoffset: 0;
+    }
 }
 .signature-area .sign-here-text {
     font-family: 'Bebas Neue', sans-serif;
@@ -999,17 +1072,16 @@ body, html {
     all: unset;
     display: block;
     width: 80%;
-    margin: 2rem auto 0;
+    margin: 2rem auto 0; /* (수정) 애니메이션 제거로 인해 auto 0으로 수정 */
     padding: 1rem;
-    background: var(--frontend-color);
-    color: #111;
+    background: #333; /* (수정) 배경색을 어두운 회색으로 변경 */
+    color: #fff; /* (수정) 글자색을 흰색으로 변경 */
     font-family: 'Bebas Neue', sans-serif;
     font-size: 1.5rem;
     letter-spacing: 2px;
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    animation: pulse-button 2s infinite ease-in-out; /* (추가) 버튼 강조 애니메이션 */
+    transition: all 0.3s ease; /* (수정) 애니메이션 제거 */
 }
 @keyframes pulse-button {
     0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(var(--frontend-color-rgb), 0.4); }

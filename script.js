@@ -2,10 +2,14 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // (추가) 새로고침 시 최상단으로 이동
-    history.scrollRestoration = 'manual'; // 브라우저의 자동 스크롤 복원 기능 비활성화
+    if (history.scrollRestoration) {
+        history.scrollRestoration = 'manual';
+    }
     window.scrollTo(0, 0);
 
-    // (수정) 로더 및 사운드 활성화 로직
+    // --- (추가) 서명 애니메이션 준비 코드 ---
+    // 페이지 로드 시 서명 경로의 총 길이를 계산하여 CSS 변수로 설정합니다.
+    // (수정) 버튼 클릭 시 애니메이션을 실행하므로, 페이지 로드 시에는 아무것도 하지 않습니다.
     const loader = document.getElementById('loader-wrapper');
     const content = document.getElementById('content');
     const startPrompt = document.getElementById('start-prompt');
@@ -213,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             size: 0.015,
             vertexColors: true, // (수정) 개별 파티클 색상 사용
             transparent: true,
+            opacity: 0.3, // (추가) 파티클 투명도를 낮춰서 덜 어지럽게 만듭니다.
             blending: THREE.AdditiveBlending, // 빛나는 효과
             depthWrite: false,
         });
@@ -285,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     particlesMaterial.size = baseSize * (0.5 + twinkleFactor * 0.5); // 50% ~ 100% 크기
                     
                     // (수정) 모든 별을 네온 옐로우 색상으로 변경하고, 반짝임 효과 적용
+                    // (수정) 밤하늘 컨셉에 맞게 네온 옐로우 색상으로 변경
                     const neonYellow = new THREE.Color('#FFFF00');
                     // twinkleFactor를 이용해 밝기를 조절하여 반짝이는 네온 효과를 만듭니다.
                     particlesMaterial.color.lerp(neonYellow.clone().multiplyScalar(0.7 + twinkleFactor * 0.3), 0.1);
@@ -392,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- (추가) STATS 섹션 프로필 사진 드래그 이스터에그 ---
+    // --- (수정) STATS 섹션 프로필 사진 드래그 이스터에그 ---
     const profileImageContainer = document.querySelector('.dynamic-profile');
     if (profileImageContainer) {
         let easterEggTimeout; // (추가) 이스터에그 자동 종료 타이머
@@ -424,11 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
         profileImageContainer.addEventListener('dragleave', (e) => {
             e.preventDefault();
             clearTimeout(easterEggTimeout); // 타이머 취소
-            const event = new CustomEvent('setEasterEgg', { detail: { enabled: false } }); 
-            window.dispatchEvent(event);
         });
     }
-
     // (수정) 인트로 텍스트 애니메이션용 사운드 로직
     const introSound = document.getElementById('intro-dribble-sound');
 
@@ -561,19 +564,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectDataContainer = document.getElementById('project-data');
     const projectItems = projectDataContainer.querySelectorAll('.project-item');
     const jumbotronFooter = document.querySelector('.jumbotron-footer');
-
-    // (추가) 필름 스트립을 담을 컨테이너 생성
-    const filmStrip = document.createElement('div');
+    const filmStripWrapper = document.querySelector('.film-strip-wrapper');
+    const filmStrip = document.createElement('div'); // 슬라이드들을 담을 컨테이너
     filmStrip.className = 'film-strip';
-    jumbotronScreen.appendChild(filmStrip);
-
+    filmStripWrapper.appendChild(filmStrip);
     // 1. 프로젝트 데이터로부터 슬라이드 생성하는 함수
     const createSlides = (container) => {
     projectItems.forEach((item, index) => {
+        // (수정) 카드 구조 변경 (썸네일 + 정보)
         const slide = document.createElement('div');
         slide.className = 'project-slide';
-        slide.style.backgroundImage = `url(${item.dataset.img})`;
         slide.dataset.tags = item.dataset.tags || ''; // (추가) 필터링을 위한 태그 복사
+        // (추가) 넓은 카드 클래스 추가
+        if (item.dataset.size === 'wide') {
+            slide.classList.add('wide');
+        } else if (item.dataset.size === 'extra-wide') {
+            // (추가) 더 넓은 카드 클래스 추가
+            slide.classList.add('extra-wide');
+        }
+
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'slide-thumbnail';
+        const img = document.createElement('img');
+        // (수정) 썸네일 이미지는 data-thumbnail 속성을 사용. 없으면 data-img를 사용.
+        img.src = item.dataset.thumbnail || item.dataset.img;
+        img.alt = item.dataset.title;
+        thumbnail.appendChild(img);
 
         const content = document.createElement('div');
         content.className = 'slide-content';
@@ -582,22 +598,39 @@ document.addEventListener('DOMContentLoaded', () => {
         category.className = 'project-category';
         category.textContent = item.dataset.category;
 
-        const title = document.createElement('h3');
-        title.textContent = item.dataset.title;
-
-        const viewButton = document.createElement('a');
-        viewButton.href = '#';
-        viewButton.className = 'view-button';
-        viewButton.textContent = 'VIEW CASE';
-        // 각 버튼에 모달을 열기 위한 데이터 속성 복사
-        Object.keys(item.dataset).forEach(key => {
-            viewButton.dataset[key] = item.dataset[key];
-        });
+        let titleElement;
+        // (추가) 이미지 제목(data-title-img)이 있으면 img 태그를, 없으면 h3 태그를 생성
+        if (item.dataset.titleImg) {
+            titleElement = document.createElement('img');
+            titleElement.src = item.dataset.titleImg;
+            titleElement.className = 'slide-title-img';
+        } else {
+            titleElement = document.createElement('h3');
+            // (수정) data-title이 비어있지 않을 때만 텍스트 설정
+            if (item.dataset.title) {
+                titleElement.textContent = item.dataset.title;
+            } else {
+                titleElement = null; // 제목이 없으면 요소를 null로 처리
+            }
+        }
 
         content.appendChild(category);
-        content.appendChild(title);
-        content.appendChild(viewButton);
+        if (titleElement) { // 제목 요소가 존재할 때만 추가
+            content.appendChild(titleElement);
+
+            const viewButton = document.createElement('a');
+            viewButton.href = '#';
+            viewButton.className = 'view-button';
+            viewButton.textContent = 'VIEW CASE';
+            // 각 버튼에 모달을 열기 위한 데이터 속성 복사
+            Object.keys(item.dataset).forEach(key => {
+                viewButton.dataset[key] = item.dataset[key];
+            });
+            content.appendChild(viewButton);
+        }
+
         slide.appendChild(content);
+        slide.insertBefore(thumbnail, content); // 썸네일을 콘텐츠 앞에 추가
             container.appendChild(slide);
     });
     };
@@ -605,10 +638,66 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 슬라이드 생성 및 무한 루프를 위해 복제
     if (projectItems.length > 0) {
         createSlides(filmStrip); // 원본 슬라이드 생성
-        // createSlides(filmStrip); // (수정) 그리드 레이아웃에서는 복제본이 필요 없으므로 주석 처리
+
+        // 무한 루프를 위해 앞/뒤에 슬라이드 복제
+        const originalSlides = filmStrip.querySelectorAll('.project-slide');
+        const slidesToPrepend = Array.from(originalSlides).slice(-3).map(s => s.cloneNode(true));
+        const slidesToAppend = Array.from(originalSlides).slice(0, 3).map(s => s.cloneNode(true));
+
+        filmStrip.prepend(...slidesToPrepend);
+        filmStrip.append(...slidesToAppend);
     }
 
-    // (삭제) 기존 슬라이더 로직 (updateJumbotron, 컨트롤러 이벤트 리스너 등) 제거
+    // --- (수정) 슬라이더 로직으로 변경 ---
+    const prevBtn = document.getElementById('jumbotron-prev');
+    const nextBtn = document.getElementById('jumbotron-next');
+    // (수정) 자연스럽게 흐르는 애니메이션 로직으로 변경
+    function setupScrollingAnimation() {
+        const originalSlides = filmStrip.querySelectorAll('.project-slide');
+        // (추가) 필터링을 위해 기존 복제본 제거
+        filmStrip.querySelectorAll('[aria-hidden="true"]').forEach(clone => clone.remove());
+        filmStrip.style.animation = 'none'; // 기존 애니메이션 중지
+
+        if (originalSlides.length === 0) return;
+
+        // 무한 스크롤을 위해 슬라이드 복제
+        originalSlides.forEach(slide => {
+            const clone = slide.cloneNode(true);
+            clone.setAttribute('aria-hidden', true);
+            filmStrip.appendChild(clone);
+        });
+
+        // 전체 너비 계산
+        let totalWidth = 0;
+        // (수정) 보이는 슬라이드만 너비 계산에 포함
+        filmStrip.querySelectorAll('.project-slide:not([aria-hidden="true"])').forEach(slide => {
+            totalWidth += slide.offsetWidth + parseInt(getComputedStyle(slide).marginRight) * 2;
+        });
+
+        // 애니메이션 속성 설정
+        const duration = totalWidth / 100; // 100px당 1초의 속도로 설정
+        // (수정) 애니메이션을 다시 시작하기 위해 속성 재설정
+        requestAnimationFrame(() => {
+            filmStrip.style.setProperty('--scroll-start', '0px');
+            filmStrip.style.setProperty('--scroll-end', `-${totalWidth}px`);
+            filmStrip.style.animation = `auto-scroll ${duration}s linear infinite`;
+        });
+    }
+
+    // DOM 렌더링 후 애니메이션 설정
+    setTimeout(setupScrollingAnimation, 100);
+
+    // 마우스를 올리면 애니메이션 멈춤, 벗어나면 다시 시작
+    jumbotronScreen.addEventListener('mouseenter', () => {
+        filmStrip.style.animationPlayState = 'paused';
+    });
+    jumbotronScreen.addEventListener('mouseleave', () => {
+        filmStrip.style.animationPlayState = 'running';
+    });
+
+    // 컨트롤러 버튼 숨기기 (자동 스크롤에서는 불필요)
+    if(prevBtn) prevBtn.style.display = 'none';
+    if(nextBtn) nextBtn.style.display = 'none';
 
     // --- (추가) 프로젝트 필터링 로직 ---
     const filtersContainer = document.querySelector('.project-filters');
@@ -616,59 +705,29 @@ document.addEventListener('DOMContentLoaded', () => {
         filtersContainer.addEventListener('click', (e) => {
             const filterBtn = e.target.closest('.filter-btn');
             if (!filterBtn) return;
-
+    
             // 활성 버튼 스타일 업데이트
             filtersContainer.querySelector('.active').classList.remove('active');
             filterBtn.classList.add('active');
-
+    
             playSound('click-sound', 0.3);
-
+    
             const filterValue = filterBtn.dataset.filter;
             const allSlides = filmStrip.querySelectorAll('.project-slide');
-
-            // --- (추가) FLIP 애니메이션 로직 ---
-            // 1. First: 애니메이션 전 각 슬라이드의 위치 저장
-            const firstPositions = new Map();
-            allSlides.forEach(slide => {
-                firstPositions.set(slide, slide.getBoundingClientRect());
-            });
-
-            // 2. 필터링 적용 (클래스 변경)
+    
+            // (수정) 슬라이더에 맞는 필터링 로직으로 변경 (FLIP 제거)
             allSlides.forEach(slide => {
                 const slideTags = slide.dataset.tags;
                 if (filterValue === 'all' || slideTags.includes(filterValue)) {
                     slide.classList.remove('is-filtered');
+                    slide.style.display = ''; // 보이도록 설정
                 } else {
                     slide.classList.add('is-filtered');
+                    slide.style.display = 'none'; // 숨기기
                 }
             });
-
-            // 3. Last: 애니메이션 후 각 슬라이드의 위치 계산
-            allSlides.forEach(slide => {
-                if (slide.classList.contains('is-filtered')) return; // 숨겨진 슬라이드는 제외
-
-                const lastPos = slide.getBoundingClientRect();
-                const firstPos = firstPositions.get(slide);
-
-                // 4. Invert: 위치 변화량 계산
-                const deltaX = firstPos.left - lastPos.left;
-                const deltaY = firstPos.top - lastPos.top;
-
-                // 5. Play: 계산된 변화량만큼 즉시 이동시킨 후, 원래 위치로 되돌아오는 애니메이션 실행
-                // 애니메이션을 비활성화하고 즉시 시작 위치로 이동
-                slide.style.transition = 'none';
-                slide.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-                
-                // 브라우저가 위의 변경사항을 렌더링하도록 강제
-                void slide.offsetWidth;
-
-                // 다음 프레임에서 애니메이션을 활성화하고 최종 위치로 이동
-                requestAnimationFrame(() => {
-                    slide.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)';
-                    slide.style.transform = '';
-                });
-            });
-
+            // (수정) 필터링 후 스크롤링 애니메이션 재설정
+            setupScrollingAnimation();
         });
     }
 
@@ -678,6 +737,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseBtn = document.querySelector('.modal-close');
 
     const modalImg = document.getElementById('modal-img');
+    const modalPdf = document.getElementById('modal-pdf');
+    const modalFigmaFrame = document.getElementById('modal-figma-frame');
+    const modalFigmaIframe = document.getElementById('modal-figma-iframe');
+    const modalImg2 = document.getElementById('modal-img2');
     const modalTitle = document.getElementById('modal-title');
     const modalCategory = document.getElementById('modal-category');
     const modalDescription = document.getElementById('modal-description');
@@ -693,13 +756,45 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
 
         const img = button.dataset.img;
+        const img2 = button.dataset.img2;
+        const figmaUrl = button.dataset.figmaUrl;
         const title = button.dataset.title;
         const category = button.dataset.category;
         const description = button.dataset.description;
         const role = button.dataset.role;
         const tools = button.dataset.tools;
 
-        modalImg.src = img;
+        // (수정) PDF 파일인지 이미지 파일인지 확인하여 다르게 처리
+        if (figmaUrl) {
+            // 피그마 URL이 있으면 피그마 프레임 표시
+            modalFigmaFrame.style.display = 'block';
+            modalFigmaIframe.src = figmaUrl;
+            modalPdf.style.display = 'none';
+            modalImg.style.display = 'none';
+            modalImg2.style.display = 'none';
+        } else if (img && img.toLowerCase().endsWith('.pdf')) {
+            // PDF 파일이면 PDF 뷰어 표시
+            modalPdf.src = img;
+            modalPdf.style.display = 'block';
+            modalFigmaFrame.style.display = 'none';
+            modalImg.style.display = 'none';
+            modalImg2.style.display = 'none';
+        } else {
+            // 그 외에는 이미지 표시
+            modalPdf.style.display = 'none';
+            modalFigmaFrame.style.display = 'none';
+            modalImg.src = img;
+            modalImg.style.display = 'block';
+
+            // (추가) 두 번째 이미지가 있는지 확인하고 표시/숨김 처리
+            if (img2) {
+                modalImg2.src = img2;
+                modalImg2.style.display = 'block';
+            } else {
+                modalImg2.style.display = 'none';
+            }
+        }
+        
         modalTitle.textContent = title;
         modalCategory.textContent = category;
         modalDescription.innerHTML = description;
@@ -864,6 +959,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. 서명 애니메이션 ('샤샤샥')
             signatureArea.classList.add('is-signed');
             playSound('pen-scratch-sound', 0.6);
+            
+            // (수정) 제공된 순차적 애니메이션 로직 적용
+            const paths = signatureArea.querySelectorAll('svg path');
+            let delay = 0;
+            paths.forEach(path => {
+                const pathLength = path.getTotalLength();
+                path.style.strokeDasharray = pathLength;
+                path.style.strokeDashoffset = pathLength;
+                // 애니메이션을 직접 설정
+                path.style.animation = `draw-signature 1.5s ease-in-out forwards`;
+                path.style.animationDelay = `${delay}s`;
+                delay += 0.4; // 다음 경로는 0.4초 뒤에 시작
+            });
 
             // 3. 스탬프 찍기 (서명 후 1초 뒤)
             setTimeout(() => {
@@ -872,7 +980,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 4. 최종 세리머니 (서명 후 1.5초 뒤)
             setTimeout(() => {
-                document.querySelector('.camera-flash').classList.add('flash');
+                // (수정) 카메라 플래시 효과를 안전하게 실행
+                const cameraFlash = document.querySelector('.camera-flash');
+                if (cameraFlash) {
+                    cameraFlash.classList.add('flash');
+                } else {
+                    console.warn("경고: .camera-flash 요소를 찾을 수 없습니다.");
+                }
                 playSound('camera-flash-sound', 0.8);
                 playSound('crowd-cheer-sound', 0.6);
                 contactSection.querySelector('.signing-success').style.display = 'block'; // 성공 메시지 표시
@@ -913,16 +1027,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('cursor-hovered');
         });
     });
-
-    if (contactSection) {
-        contactSection.addEventListener('mousemove', (e) => {
-            const { clientX, clientY, currentTarget } = e;
-            const { clientWidth, clientHeight } = currentTarget;
-            const xPos = (clientX / clientWidth - 0.5) * 30;
-            const yPos = (clientY / clientHeight - 0.5) * 20;
-            contactSection.style.setProperty('--bg-transform', `scale(1.1) translate(${xPos}px, ${yPos}px)`);
-        });
-    }
 
     document.addEventListener('click', function(e) {
         if (e.target.closest('a, button')) return;
